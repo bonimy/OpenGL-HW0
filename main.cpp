@@ -72,20 +72,20 @@ void keyboardFunc(unsigned char key, int x, int y)
 // Right now, it's handling the arrow keys.
 void specialFunc(int key, int x, int y)
 {
-    float lightAngleRad = deg2rad(LIGHT_SHIFT_DEGREES);
+    float lightShiftRads = deg2rad(LIGHT_SHIFT_DEGREES);
     switch (key)
     {
     case GLUT_KEY_UP:
-        rotateLightMatrix(Vector3f::RIGHT, -lightAngleRad);
+        rotateLightMatrix(Vector3f::RIGHT, -lightShiftRads);
         break;
     case GLUT_KEY_DOWN:
-        rotateLightMatrix(Vector3f::RIGHT, +lightAngleRad);
+        rotateLightMatrix(Vector3f::RIGHT, +lightShiftRads);
         break;
     case GLUT_KEY_LEFT:
-        rotateLightMatrix(Vector3f::UP, -lightAngleRad);
+        rotateLightMatrix(Vector3f::UP, -lightShiftRads);
         break;
     case GLUT_KEY_RIGHT:
-        rotateLightMatrix(Vector3f::UP, +lightAngleRad);
+        rotateLightMatrix(Vector3f::UP, +lightShiftRads);
         break;
     }
 
