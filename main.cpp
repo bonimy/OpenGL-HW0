@@ -53,7 +53,6 @@ struct HCY
     GLfloat chroma; // 0 to 1 inclusive
     GLfloat luma;   // 0 to 1 inclusive
 } diffuseHsl; // The current display color in HCY form.
-int colorIndex;
 
            // Represents an OpenGL-styled color of floats
 union RGB
