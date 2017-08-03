@@ -12,6 +12,21 @@ using namespace std;
 // This should be more than enough.
 #define MAX_BUFFER_SIZE 10000
 
+// Shift amount for hue color change.
+#define HUE_SHIFT_DEGREES   15
+
+// Shift amount for light position change.
+#define LIGHT_SHIFT_DEGREES   15
+
+// Mathematical constant
+#define PI 3.14159265358972
+
+// Convert radians to degrees
+#define rad2deg(rad) ((rad)* 180.0 / PI)
+
+// Convert degrees to radians
+#define deg2rad(deg) ((deg) * PI / 180.0)
+
 // This is the list of points (3D vectors)
 vector<Vector3f> vecv;
 
@@ -21,7 +36,109 @@ vector<Vector3f> vecn;
 // This is the list of faces (indices into vecv and vecn)
 vector<vector<unsigned> > vecf;
 
-// You will need more global variables to implement color and position changes
+// Light position
+Vector4f Lt0pos(1, 1, 5, 1);
+
+// Rotates the light transformation matrix
+void rotateLightMatrix(const Vector3f &direction, float radians)
+{
+    Lt0pos = Matrix4f::rotation(direction, radians) * Lt0pos;
+}
+
+// Represents a color by its hue, chroma, and luma
+struct HCY
+{
+    GLfloat alpha;  // 0 to 1 inclusive
+    GLfloat hue;    // 0 to 1 inclusive
+    GLfloat chroma; // 0 to 1 inclusive
+    GLfloat luma;   // 0 to 1 inclusive
+} diffuseHsl; // The current display color in HCY form.
+int colorIndex;
+
+           // Represents an OpenGL-styled color of floats
+union RGB
+{
+    // 0 to 1 inclusive
+    GLfloat values[4];
+    struct
+    {
+        // Channels must be in this exact order to match OpenGL's system.
+        GLfloat red, green, blue, alpha;
+    };
+};
+
+// Get an RGB color from an HCY color
+void hcy2rgb(const struct HCY &hcy, union RGB &rgb)
+{
+    GLfloat chroma = hcy.chroma;
+    GLfloat hue = hcy.hue * 6;
+    GLfloat r = 0.f;
+    GLfloat g = 0.f;
+    GLfloat b = 0.f;
+
+    if (chroma > 0)
+    {
+        if (hue >= 0 && hue < 1)
+        {
+            r = chroma;
+            g = chroma * hue;
+        }
+        else if (hue >= 1 && hue < 2)
+        {
+            r = chroma * (2 - hue);
+            g = chroma;
+        }
+        else if (hue >= 2 && hue < 3)
+        {
+            g = chroma;
+            b = chroma * (hue - 2);
+        }
+        else if (hue >= 3 && hue < 4)
+        {
+            g = chroma * (4 - hue);
+            b = chroma;
+        }
+        else if (hue >= 4 && hue < 5)
+        {
+            r = chroma * (hue - 4);
+            b = chroma;
+        }
+        else //if (hue >= 5 && hue < 6)
+        {
+            r = chroma;
+            b = chroma * (6 - hue);
+        }
+    }
+
+    // Color channel contributions (sums to unity).
+#define REDWEIGHT   0.299f
+#define GREENWEIGHT 0.587f
+#define BLUEWEIGHT  0.114f
+
+    GLfloat match = hcy.luma - (REDWEIGHT * r + GREENWEIGHT * g + BLUEWEIGHT * b);
+
+#undef REDWEIGHT
+#undef GREENWEIGHT
+#undef BLUEWEIGHT
+
+    rgb.alpha = hcy.alpha;
+    rgb.red = r + match;
+    rgb.green = g + match;
+    rgb.blue = b + match;
+}
+
+// Shift the current hue value by the given amount.
+void shifthue(GLfloat delta)
+{
+    // Add change to current hue.
+    diffuseHsl.hue += delta;
+
+    // Modulus clamp the value to be between 0 and 1.
+    while (diffuseHsl.hue > 1)
+        diffuseHsl.hue -= 1;
+    while (diffuseHsl.hue < 0)
+        diffuseHsl.hue += 1;
+}
 
 // These are convenience functions which allow us to call OpenGL
 // methods on Vec3d objects
@@ -45,7 +162,7 @@ void keyboardFunc(unsigned char key, int x, int y)
         break;
     case 'c':
         // add code to change color here
-        cout << "Unhandled key press " << key << "." << endl;
+        shifthue(HUE_SHIFT_DEGREES / 360.0f);
         break;
     default:
         cout << "Unhandled key press " << key << "." << endl;
@@ -59,23 +176,20 @@ void keyboardFunc(unsigned char key, int x, int y)
 // Right now, it's handling the arrow keys.
 void specialFunc(int key, int x, int y)
 {
+    float lightShiftRads = deg2rad(LIGHT_SHIFT_DEGREES);
     switch (key)
     {
     case GLUT_KEY_UP:
-        // add code to change light position
-        cout << "Unhandled key press: up arrow." << endl;
+        rotateLightMatrix(Vector3f::RIGHT, -lightShiftRads);
         break;
     case GLUT_KEY_DOWN:
-        // add code to change light position
-        cout << "Unhandled key press: down arrow." << endl;
+        rotateLightMatrix(Vector3f::RIGHT, +lightShiftRads);
         break;
     case GLUT_KEY_LEFT:
-        // add code to change light position
-        cout << "Unhandled key press: left arrow." << endl;
+        rotateLightMatrix(Vector3f::UP, -lightShiftRads);
         break;
     case GLUT_KEY_RIGHT:
-        // add code to change light position
-        cout << "Unhandled key press: right arrow." << endl;
+        rotateLightMatrix(Vector3f::UP, +lightShiftRads);
         break;
     }
 
@@ -136,14 +250,12 @@ void drawScene(void)
 
     // Set material properties of object
 
-    // Here are some colors you might use - feel free to add more
-    GLfloat diffColors[4][4] = { {0.5f, 0.5f, 0.9f, 1.0f},
-                                 {0.9f, 0.5f, 0.5f, 1.0f},
-                                 {0.5f, 0.9f, 0.3f, 1.0f},
-                                 {0.3f, 0.8f, 0.9f, 1.0f} };
+    // Get current color in OpenGL-readable RGB format.
+    RGB diffuseRgb;
+    hcy2rgb(diffuseHsl, diffuseRgb);
 
-    // Here we use the first color entry as the diffuse color
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, diffColors[0]);
+    // Assign the current rgb color as the diffuse color.
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, diffuseRgb.values);
 
     // Define specular color and shininess
     GLfloat specColor[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -157,8 +269,6 @@ void drawScene(void)
 
     // Light color (RGBA)
     GLfloat Lt0diff[] = { 1.0,1.0,1.0,1.0 };
-    // Light position
-    GLfloat Lt0pos[] = { 1.0f, 1.0f, 5.0f, 1.0f };
 
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
@@ -282,6 +392,12 @@ void loadInput()
 // Set up OpenGL, define the callbacks and start the main loop
 int main(int argc, char** argv)
 {
+    // Initialize current HSL color.
+    diffuseHsl.alpha = 1;
+    diffuseHsl.hue = 0;
+    diffuseHsl.chroma = 1;
+    diffuseHsl.luma = 0.5f;
+
     loadInput();
 
     glutInit(&argc, argv);
