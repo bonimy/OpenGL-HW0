@@ -17,6 +17,6 @@
 #include "freeglut_std.h"
 #include "freeglut_ext.h"
 
-/*** END OF FILE ***/
+ /*** END OF FILE ***/
 
 #endif /* __FREEGLUT_H__ */

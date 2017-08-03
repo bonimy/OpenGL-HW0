@@ -10,101 +10,100 @@ class Quat4f
 {
 public:
 
-	static const Quat4f ZERO;
-	static const Quat4f IDENTITY;
+    static const Quat4f ZERO;
+    static const Quat4f IDENTITY;
 
-	Quat4f();
+    Quat4f();
 
-	// q = w + x * i + y * j + z * k
-	Quat4f( float w, float x, float y, float z );
-		
-	Quat4f( const Quat4f& rq ); // copy constructor
-	Quat4f& operator = ( const Quat4f& rq ); // assignment operator
-	// no destructor necessary
+    // q = w + x * i + y * j + z * k
+    Quat4f(float w, float x, float y, float z);
 
-	// returns a quaternion with 0 real part
-	Quat4f( const Vector3f& v );
+    Quat4f(const Quat4f& rq); // copy constructor
+    Quat4f& operator = (const Quat4f& rq); // assignment operator
+    // no destructor necessary
 
-	// copies the components of a Vector4f directly into this quaternion
-	Quat4f( const Vector4f& v );
+    // returns a quaternion with 0 real part
+    Quat4f(const Vector3f& v);
 
-	// returns the ith element
-	const float& operator [] ( int i ) const;
-	float& operator [] ( int i );
+    // copies the components of a Vector4f directly into this quaternion
+    Quat4f(const Vector4f& v);
 
-	float w() const;
-	float x() const;
-	float y() const;
-	float z() const;
-	Vector3f xyz() const;
-	Vector4f wxyz() const;
+    // returns the ith element
+    const float& operator [] (int i) const;
+    float& operator [] (int i);
 
-	float abs() const;
-	float absSquared() const;
-	void normalize();
-	Quat4f normalized() const;
+    float w() const;
+    float x() const;
+    float y() const;
+    float z() const;
+    Vector3f xyz() const;
+    Vector4f wxyz() const;
 
-	void conjugate();
-	Quat4f conjugated() const;
+    float abs() const;
+    float absSquared() const;
+    void normalize();
+    Quat4f normalized() const;
 
-	void invert();
-	Quat4f inverse() const;
+    void conjugate();
+    Quat4f conjugated() const;
 
-	// log and exponential maps
-	Quat4f log() const;
-	Quat4f exp() const;
-	
-	// returns unit vector for rotation and radians about the unit vector
-	Vector3f getAxisAngle( float* radiansOut );
+    void invert();
+    Quat4f inverse() const;
 
-	// sets this quaternion to be a rotation of fRadians about v = < fx, fy, fz >, v need not necessarily be unit length
-	void setAxisAngle( float radians, const Vector3f& axis );
+    // log and exponential maps
+    Quat4f log() const;
+    Quat4f exp() const;
 
-	// ---- Utility ----
-	void print();
- 
-	 // quaternion dot product (a la vector)
-	static float dot( const Quat4f& q0, const Quat4f& q1 );	
-	
-	// linear (stupid) interpolation
-	static Quat4f lerp( const Quat4f& q0, const Quat4f& q1, float alpha );
+    // returns unit vector for rotation and radians about the unit vector
+    Vector3f getAxisAngle(float* radiansOut);
 
-	// spherical linear interpolation
-	static Quat4f slerp( const Quat4f& a, const Quat4f& b, float t, bool allowFlip = true );
-	
-	// spherical quadratic interoplation between a and b at point t
-	// given quaternion tangents tanA and tanB (can be computed using squadTangent)	
-	static Quat4f squad( const Quat4f& a, const Quat4f& tanA, const Quat4f& tanB, const Quat4f& b, float t );
+    // sets this quaternion to be a rotation of fRadians about v = < fx, fy, fz >, v need not necessarily be unit length
+    void setAxisAngle(float radians, const Vector3f& axis);
 
-	static Quat4f cubicInterpolate( const Quat4f& q0, const Quat4f& q1, const Quat4f& q2, const Quat4f& q3, float t );
+    // ---- Utility ----
+    void print();
 
-	// Log-difference between a and b, used for squadTangent
-	// returns log( a^-1 b )	
-	static Quat4f logDifference( const Quat4f& a, const Quat4f& b );
+    // quaternion dot product (a la vector)
+    static float dot(const Quat4f& q0, const Quat4f& q1);
 
-	// Computes a tangent at center, defined by the before and after quaternions
-	// Useful for squad()
-	static Quat4f squadTangent( const Quat4f& before, const Quat4f& center, const Quat4f& after );		
+    // linear (stupid) interpolation
+    static Quat4f lerp(const Quat4f& q0, const Quat4f& q1, float alpha);
 
-	static Quat4f fromRotationMatrix( const Matrix3f& m );
+    // spherical linear interpolation
+    static Quat4f slerp(const Quat4f& a, const Quat4f& b, float t, bool allowFlip = true);
 
-	static Quat4f fromRotatedBasis( const Vector3f& x, const Vector3f& y, const Vector3f& z );
+    // spherical quadratic interoplation between a and b at point t
+    // given quaternion tangents tanA and tanB (can be computed using squadTangent)
+    static Quat4f squad(const Quat4f& a, const Quat4f& tanA, const Quat4f& tanB, const Quat4f& b, float t);
 
-	// returns a unit quaternion that's a uniformly distributed rotation
-	// given u[i] is a uniformly distributed random number in [0,1]
-	// taken from Graphics Gems II
-	static Quat4f randomRotation( float u0, float u1, float u2 );
+    static Quat4f cubicInterpolate(const Quat4f& q0, const Quat4f& q1, const Quat4f& q2, const Quat4f& q3, float t);
+
+    // Log-difference between a and b, used for squadTangent
+    // returns log( a^-1 b )
+    static Quat4f logDifference(const Quat4f& a, const Quat4f& b);
+
+    // Computes a tangent at center, defined by the before and after quaternions
+    // Useful for squad()
+    static Quat4f squadTangent(const Quat4f& before, const Quat4f& center, const Quat4f& after);
+
+    static Quat4f fromRotationMatrix(const Matrix3f& m);
+
+    static Quat4f fromRotatedBasis(const Vector3f& x, const Vector3f& y, const Vector3f& z);
+
+    // returns a unit quaternion that's a uniformly distributed rotation
+    // given u[i] is a uniformly distributed random number in [0,1]
+    // taken from Graphics Gems II
+    static Quat4f randomRotation(float u0, float u1, float u2);
 
 private:
 
-	float m_elements[ 4 ];
-
+    float m_elements[4];
 };
 
-Quat4f operator + ( const Quat4f& q0, const Quat4f& q1 );
-Quat4f operator - ( const Quat4f& q0, const Quat4f& q1 );
-Quat4f operator * ( const Quat4f& q0, const Quat4f& q1 );
-Quat4f operator * ( float f, const Quat4f& q );
-Quat4f operator * ( const Quat4f& q, float f );
+Quat4f operator + (const Quat4f& q0, const Quat4f& q1);
+Quat4f operator - (const Quat4f& q0, const Quat4f& q1);
+Quat4f operator * (const Quat4f& q0, const Quat4f& q1);
+Quat4f operator * (float f, const Quat4f& q);
+Quat4f operator * (const Quat4f& q, float f);
 
 #endif // QUAT4F_H
