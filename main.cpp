@@ -7,6 +7,16 @@
 using namespace std;
 
 // Globals
+#define LIGHT_SHIFT_DEGREES   15
+
+// Mathematical constant
+#define PI 3.14159265358972
+
+// Convert radians to degrees
+#define rad2deg(rad) ((rad)* 180.0 / PI)
+
+// Convert degrees to radians
+#define deg2rad(deg) ((deg) * PI / 180.0)
 
 // This is the list of points (3D vectors)
 vector<Vector3f> vecv;
@@ -17,7 +27,14 @@ vector<Vector3f> vecn;
 // This is the list of faces (indices into vecv and vecn)
 vector<vector<unsigned> > vecf;
 
-// You will need more global variables to implement color and position changes
+// Light position
+Vector4f Lt0pos(1, 1, 5, 1);
+
+// Rotates the light transformation matrix
+void rotateLightMatrix(const Vector3f &direction, float radians)
+{
+    Lt0pos = Matrix4f::rotation(direction, radians) * Lt0pos;
+}
 
 // These are convenience functions which allow us to call OpenGL
 // methods on Vec3d objects
@@ -55,23 +72,20 @@ void keyboardFunc(unsigned char key, int x, int y)
 // Right now, it's handling the arrow keys.
 void specialFunc(int key, int x, int y)
 {
+    float lightAngleRad = deg2rad(LIGHT_SHIFT_DEGREES);
     switch (key)
     {
     case GLUT_KEY_UP:
-        // add code to change light position
-        cout << "Unhandled key press: up arrow." << endl;
+        rotateLightMatrix(Vector3f::RIGHT, -lightAngleRad);
         break;
     case GLUT_KEY_DOWN:
-        // add code to change light position
-        cout << "Unhandled key press: down arrow." << endl;
+        rotateLightMatrix(Vector3f::RIGHT, +lightAngleRad);
         break;
     case GLUT_KEY_LEFT:
-        // add code to change light position
-        cout << "Unhandled key press: left arrow." << endl;
+        rotateLightMatrix(Vector3f::UP, -lightAngleRad);
         break;
     case GLUT_KEY_RIGHT:
-        // add code to change light position
-        cout << "Unhandled key press: right arrow." << endl;
+        rotateLightMatrix(Vector3f::UP, +lightAngleRad);
         break;
     }
 
@@ -118,8 +132,6 @@ void drawScene(void)
 
     // Light color (RGBA)
     GLfloat Lt0diff[] = { 1.0,1.0,1.0,1.0 };
-    // Light position
-    GLfloat Lt0pos[] = { 1.0f, 1.0f, 5.0f, 1.0f };
 
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
