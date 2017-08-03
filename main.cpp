@@ -8,6 +8,10 @@ using namespace std;
 
 // Globals
 
+// The maximum buffer size for a single cin line.
+// This should be more than enough.
+#define MAX_BUFFER_SIZE 10000
+
 // Shift amount for hue color change.
 #define HUE_SHIFT_DEGREES   15
 
@@ -193,6 +197,41 @@ void specialFunc(int key, int x, int y)
     glutPostRedisplay();
 }
 
+void drawTriangle(const vector<unsigned> &face)
+{
+#define DRAWPOINT(index) \
+glNormal3d(vecn[face[index+2]][0], vecn[face[index+2]][1], vecn[face[index+2]][2]);\
+glVertex3d(vecv[face[index+0]][0], vecv[face[index+0]][1], vecv[face[index+0]][2])
+
+    // Draw first point
+    DRAWPOINT(0);
+
+    // Draw second point
+    DRAWPOINT(3);
+
+    // Draw last point
+    DRAWPOINT(6);
+
+#undef DRAWPOINT
+}
+
+void renderMesh()
+{
+    int fsize = vecf.size();
+    if (fsize)
+    {
+        glBegin(GL_TRIANGLES);
+        for (int i = 0; i < fsize; i++)
+        {
+            // Draw each triangle
+            drawTriangle(vecf[i]);
+        }
+        glEnd();
+    }
+    else // Draw the teapot if no mesh is loaded.
+        glutSolidTeapot(1.0);
+}
+
 // This function is responsible for displaying the object.
 void drawScene(void)
 {
@@ -234,9 +273,7 @@ void drawScene(void)
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
 
-    // This GLUT method draws a teapot.  You should replace
-    // it with code which draws the object you loaded.
-    glutSolidTeapot(1.0);
+    renderMesh();
 
     // Dump the image to the screen.
     glutSwapBuffers();
@@ -272,6 +309,83 @@ void reshapeFunc(int w, int h)
 void loadInput()
 {
     // load the OBJ file here
+
+    // Current line
+    char buffer[MAX_BUFFER_SIZE];
+
+    // Current parsed vector
+    Vector3f v;
+
+    // Current token ("v", "vn", or "f").
+    string s;
+
+    const int fSize = 9;
+
+    // Current face array
+    unsigned f[fSize];
+
+    do
+    {
+        // Get current line
+        cin.getline(buffer, MAX_BUFFER_SIZE);
+
+        // Replace forward slashes with spaces (to better parse faces)
+        for (int i = 0; buffer[i]; i++)
+        {
+            if (buffer[i] == '/')
+                buffer[i] = ' ';
+        }
+
+        // Initialize new string stream.
+        stringstream ss(buffer);
+
+        // Get token
+        ss >> s;
+
+        // This is a vertex token.
+        if (s == "v")
+        {
+            // Get vector from line
+            ss >> v[0] >> v[1] >> v[2];
+
+            // Store to vertex array
+            vecv.push_back(v);
+            continue;
+        }
+
+        // This is a vector-normal token.
+        if (s == "vn")
+        {
+            // Get vector from line
+            ss >> v[0] >> v[1] >> v[2];
+
+            // Store to vertex array
+            vecn.push_back(v);
+            continue;
+        }
+
+        // This is a face token.
+        if (s == "f")
+        {
+            // Initialize face vector
+            vector<unsigned> face;
+
+            // Iterate for the number of elements we expect (9)
+            for (int i = 0; i < fSize; i++)
+            {
+                // Get face index
+                ss >> f[i];
+
+                // Store to current face vector.
+                // We subtract one to account for the zero index of C++.
+                face.push_back(f[i] - 1);
+            }
+
+            // push complete face vector
+            vecf.push_back(face);
+            continue;
+        }
+    } while (!cin.eof());
 }
 
 // Main routine.
