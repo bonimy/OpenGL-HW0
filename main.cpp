@@ -82,8 +82,6 @@ void specialFunc(int key, int x, int y)
 // This function is responsible for displaying the object.
 void drawScene(void)
 {
-    int i;
-
     // Clear the rendering window
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -100,10 +98,10 @@ void drawScene(void)
     // Set material properties of object
 
     // Here are some colors you might use - feel free to add more
-    GLfloat diffColors[4][4] = { {0.5, 0.5, 0.9, 1.0},
-                                 {0.9, 0.5, 0.5, 1.0},
-                                 {0.5, 0.9, 0.3, 1.0},
-                                 {0.3, 0.8, 0.9, 1.0} };
+    GLfloat diffColors[4][4] = { {0.5f, 0.5f, 0.9f, 1.0f},
+                                 {0.9f, 0.5f, 0.5f, 1.0f},
+                                 {0.5f, 0.9f, 0.3f, 1.0f},
+                                 {0.3f, 0.8f, 0.9f, 1.0f} };
 
     // Here we use the first color entry as the diffuse color
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, diffColors[0]);
