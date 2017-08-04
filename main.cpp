@@ -6,11 +6,14 @@
 #include "vecmath.h"
 using namespace std;
 
-// Globals
+// Defines
 
 // The maximum buffer size for a single cin line.
 // This should be more than enough.
 #define MAX_BUFFER_SIZE 10000
+
+// The rotation delta angle to rotate the mesh object every frame.
+#define MESH_ROTATE_DEGREES 1
 
 // Shift amount for hue color change.
 #define HUE_SHIFT_DEGREES   1
@@ -22,10 +25,12 @@ using namespace std;
 #define PI 3.14159265358972
 
 // Convert radians to degrees
-#define rad2deg(rad) ((rad)* 180.0 / PI)
+#define rad2deg(rad) ((rad) * 180.0 / PI)
 
 // Convert degrees to radians
 #define deg2rad(deg) ((deg) * PI / 180.0)
+
+// Globals
 
 // GL list for rendering our static object
 GLuint mesh;
@@ -42,19 +47,17 @@ vector<vector<unsigned> > vecf;
 // Light position
 Vector4f Lt0pos(1, 1, 5, 1);
 
-// Timer variables
-
 // Millisecond wait times for update functions. Gives us 60FPS.
-int wait[] = { 17, 16, 16 };
+int timerInterval[] = { 17, 16, 16 };
 
 // Determines whether the object is being rotated by an 'r' key press.
-bool rSpin;
+bool meshSpinAnimate;
 
 // Determines whether to cycle through hue colors.
-bool hueCycleAnimate;
+bool diffuseColorAnimate;
 
 // The current Y-rotated angle of the rendered object.
-GLfloat spinAngle = 0;
+GLfloat spinAngleY = 0;
 
 // Rotates the light transformation matrix
 void rotateLightMatrix(const Vector3f &direction, float radians)
@@ -69,7 +72,33 @@ struct HCY
     GLfloat hue;    // 0 to 1 inclusive
     GLfloat chroma; // 0 to 1 inclusive
     GLfloat luma;   // 0 to 1 inclusive
-} diffuseHsl; // The current display color in HCY form.
+
+    HCY(GLfloat a, GLfloat h, GLfloat c, GLfloat y)
+    {
+#define CLAMP(x) x < 0 ? 0 : (x > 1 ? 1 : x)
+        alpha  = CLAMP(a);
+        hue    = CLAMP(h);
+        chroma = CLAMP(c);
+        luma   = CLAMP(y);
+#undef CLAMP
+    }
+
+    // Rotate color's hue by given degrees
+    void rotateHue(const GLfloat degrees)
+    {
+        float delta = degrees / 360.0f;
+
+        // Add change to current hue.
+        hue += delta;
+
+        // Modulus clamp the value to be between 0 and 1.
+        while (hue > 1)
+            hue -= 1;
+        while (hue < 0)
+            hue += 1;
+    }
+
+} diffuseHsl(1, 0, 1, 0.5); // The current display color in HCY form.
 
            // Represents an OpenGL-styled color of floats
 union RGB
@@ -143,19 +172,6 @@ void hcy2rgb(const struct HCY &hcy, union RGB &rgb)
     rgb.blue = b + match;
 }
 
-// Shift the current hue value by the given amount.
-void shifthue(GLfloat delta)
-{
-    // Add change to current hue.
-    diffuseHsl.hue += delta;
-
-    // Modulus clamp the value to be between 0 and 1.
-    while (diffuseHsl.hue > 1)
-        diffuseHsl.hue -= 1;
-    while (diffuseHsl.hue < 0)
-        diffuseHsl.hue += 1;
-}
-
 // These are convenience functions which allow us to call OpenGL
 // methods on Vec3d objects
 inline void glVertex(const Vector3f &a)
@@ -168,6 +184,32 @@ inline void glNormal(const Vector3f &a)
     glNormal3fv(a);
 }
 
+// Toggles smooth color change animation on or off.
+void toggleDiffuseColorAnimate()
+{
+    if (diffuseColorAnimate ^= true)
+    {
+        cout << "Auto shifting hue: Enabled" << endl;
+    }
+    else
+    {
+        cout << "Auto shifting hue: Disabled" << endl;
+    }
+}
+
+// Toggles spinning of mesh object on or off.
+void toggleMeshSpinAnimate()
+{
+    if (meshSpinAnimate ^= true)
+    {
+        cout << "Auto rotating: Enabled" << endl;
+    }
+    else
+    {
+        cout << "Auto rotating: Disabled" << endl;
+    }
+}
+
 // This function is called whenever a "Normal" key press is received.
 void keyboardFunc(unsigned char key, int x, int y)
 {
@@ -176,28 +218,15 @@ void keyboardFunc(unsigned char key, int x, int y)
     case 27: // Escape key
         exit(0);
         break;
-    case 'c':
 
-        // Change the color's hue by three degrees for every press of 'c'.
-        if (hueCycleAnimate ^= true)
-        {
-            cout << "Auto shifting hue: Enabled" << endl;
-        }
-        else
-        {
-            cout << "Auto shifting hue: Disabled" << endl;
-        }
+    case 'c':
+        toggleDiffuseColorAnimate();
         break;
+
     case 'r':
-        if (rSpin ^= true)
-        {
-            cout << "Auto rotating: Enabled" << endl;
-        }
-        else
-        {
-            cout << "Auto rotating: Disabled" << endl;
-        }
+        toggleMeshSpinAnimate();
         break;
+
     default:
         cout << "Unhandled key press " << key << "." << endl;
     }
@@ -210,7 +239,9 @@ void keyboardFunc(unsigned char key, int x, int y)
 // Right now, it's handling the arrow keys.
 void specialFunc(int key, int x, int y)
 {
+    // Calculate diffuse light position's change in radians.
     float lightShiftRads = (float)deg2rad(LIGHT_SHIFT_DEGREES);
+
     switch (key)
     {
     case GLUT_KEY_UP:
@@ -231,6 +262,8 @@ void specialFunc(int key, int x, int y)
     glutPostRedisplay();
 }
 
+// Draws an OpenGL triangle designated by a face vector, which specifies which
+// vertices and normals to index to.
 void drawTriangle(const vector<unsigned> &face)
 {
 #define DRAWPOINT(index) \
@@ -249,6 +282,7 @@ glVertex3d(vecv[face[index+0]][0], vecv[face[index+0]][1], vecv[face[index+0]][2
 #undef DRAWPOINT
 }
 
+// Renders the loaded mesh, or the GL solid teapot if no file was specified.
 void renderMesh()
 {
     int fsize = vecf.size();
@@ -284,7 +318,7 @@ void drawScene(void)
 
     // Rotate model-view matrix for rendering model, then restore matrix
     glPushMatrix();
-    glRotatef(spinAngle, 0, 1, 0);
+    glRotatef(spinAngleY, 0, 1, 0);
     renderMesh();
     glPopMatrix();
 
@@ -440,35 +474,36 @@ void loadInput()
 
 void update(int code)
 {
+    // Assume animation is disabled until a flag enables it.
     bool redraw = false;
-    if (rSpin)
+
+    // Update mesh rotation angle
+    if (meshSpinAnimate)
     {
-        spinAngle += 90 / 64.f;
+        spinAngleY += MESH_ROTATE_DEGREES;
         redraw = true;
     }
 
-    if (hueCycleAnimate)
+    // Update diffuse color
+    if (diffuseColorAnimate)
     {
-        shifthue(HUE_SHIFT_DEGREES / 360.f);
+        diffuseHsl.rotateHue(HUE_SHIFT_DEGREES);
         redraw = true;
     }
 
+    // Redraw if an animation flag was set.
     if (redraw)
         glutPostRedisplay();
 
-    glutTimerFunc(wait[code], update, (code + 1) % (sizeof(wait) / sizeof(int)));
+    // Update timer to next interval.
+    glutTimerFunc(timerInterval[code], update, (code + 1) % (sizeof(timerInterval) / sizeof(int)));
 }
 
 // Main routine.
 // Set up OpenGL, define the callbacks and start the main loop
 int main(int argc, char** argv)
 {
-    // Initialize current HSL color.
-    diffuseHsl.alpha = 1;
-    diffuseHsl.hue = 0;
-    diffuseHsl.chroma = 1;
-    diffuseHsl.luma = 0.5f;
-
+    // Load an .OBJ file if one was specified.
     loadInput();
 
     glutInit(&argc, argv);
