@@ -13,7 +13,7 @@ using namespace std;
 #define MAX_BUFFER_SIZE 10000
 
 // Shift amount for hue color change.
-#define HUE_SHIFT_DEGREES   15
+#define HUE_SHIFT_DEGREES   1
 
 // Shift amount for light position change.
 #define LIGHT_SHIFT_DEGREES   15
@@ -49,6 +49,9 @@ int wait[] = { 17, 16, 16 };
 
 // Determines whether the object is being rotated by an 'r' key press.
 bool rSpin;
+
+// Determines whether to cycle through hue colors.
+bool hueCycleAnimate;
 
 // The current Y-rotated angle of the rendered object.
 GLfloat spinAngle = 0;
@@ -174,8 +177,16 @@ void keyboardFunc(unsigned char key, int x, int y)
         exit(0);
         break;
     case 'c':
-        // add code to change color here
-        shifthue(HUE_SHIFT_DEGREES / 360.0f);
+
+        // Change the color's hue by three degrees for every press of 'c'.
+        if (hueCycleAnimate ^= true)
+        {
+            cout << "Auto shifting hue: Enabled" << endl;
+        }
+        else
+        {
+            cout << "Auto shifting hue: Disabled" << endl;
+        }
         break;
     case 'r':
         if (rSpin ^= true)
@@ -433,6 +444,12 @@ void update(int code)
     if (rSpin)
     {
         spinAngle += 90 / 64.f;
+        redraw = true;
+    }
+
+    if (hueCycleAnimate)
+    {
+        shifthue(HUE_SHIFT_DEGREES / 360.f);
         redraw = true;
     }
 
