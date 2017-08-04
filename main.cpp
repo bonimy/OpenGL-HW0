@@ -42,6 +42,17 @@ vector<vector<unsigned> > vecf;
 // Light position
 Vector4f Lt0pos(1, 1, 5, 1);
 
+// Timer variables
+
+// Millisecond wait times for update functions. Gives us 60FPS.
+int wait[] = { 17, 16, 16 };
+
+// Determines whether the object is being rotated by an 'r' key press.
+bool rSpin;
+
+// The current Y-rotated angle of the rendered object.
+GLfloat spinAngle = 0;
+
 // Rotates the light transformation matrix
 void rotateLightMatrix(const Vector3f &direction, float radians)
 {
@@ -166,6 +177,16 @@ void keyboardFunc(unsigned char key, int x, int y)
         // add code to change color here
         shifthue(HUE_SHIFT_DEGREES / 360.0f);
         break;
+    case 'r':
+        if (rSpin ^= true)
+        {
+            cout << "Auto rotating: Enabled" << endl;
+        }
+        else
+        {
+            cout << "Auto rotating: Disabled" << endl;
+        }
+        break;
     default:
         cout << "Unhandled key press " << key << "." << endl;
     }
@@ -178,7 +199,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 // Right now, it's handling the arrow keys.
 void specialFunc(int key, int x, int y)
 {
-    float lightShiftRads = deg2rad(LIGHT_SHIFT_DEGREES);
+    float lightShiftRads = (float)deg2rad(LIGHT_SHIFT_DEGREES);
     switch (key)
     {
     case GLUT_KEY_UP:
@@ -240,9 +261,9 @@ void drawScene(void)
     // Clear the rendering window
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Rotate the image
+    // Initialize the model-view matrix
     glMatrixMode(GL_MODELVIEW);  // Current matrix affects objects positions
-    glLoadIdentity();              // Initialize to the identity
+    glLoadIdentity();
 
     // Position the camera at [0,0,5], looking at [0,0,0],
     // with [0,1,0] as the up direction.
@@ -250,13 +271,19 @@ void drawScene(void)
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0);
 
+    // Rotate model-view matrix for rendering model, then restore matrix
+    glPushMatrix();
+    glRotatef(spinAngle, 0, 1, 0);
+    renderMesh();
+    glPopMatrix();
+
     // Set material properties of object
 
     // Get current color in OpenGL-readable RGB format.
     RGB diffuseRgb;
     hcy2rgb(diffuseHsl, diffuseRgb);
 
-    // Assign the current rgb color as the diffuse color.
+    // Assign the current RGB color as the diffuse color.
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, diffuseRgb.values);
 
     // Define specular color and shininess
@@ -274,9 +301,6 @@ void drawScene(void)
 
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
-
-    // Set material properties of object
-    glCallList(mesh);
 
     // Dump the image to the screen.
     glutSwapBuffers();
@@ -306,7 +330,7 @@ void initRendering()
 // w, h - width and height of the window in pixels.
 void reshapeFunc(int w, int h)
 {
-    // Always use the largest square viewport possible
+    // Always use the largest square view-port possible
     if (w > h) {
         glViewport((w - h) / 2, 0, h, h);
     }
@@ -317,7 +341,7 @@ void reshapeFunc(int w, int h)
     // Set up a perspective view, with square aspect ratio
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    // 50 degree fov, uniform aspect ratio, near = 1, far = 100
+    // 50 degree FOV, uniform aspect ratio, near = 1, far = 100
     gluPerspective(50.0, 1.0, 1.0, 100.0);
 }
 
@@ -403,6 +427,21 @@ void loadInput()
     } while (!cin.eof());
 }
 
+void update(int code)
+{
+    bool redraw = false;
+    if (rSpin)
+    {
+        spinAngle += 90 / 64.f;
+        redraw = true;
+    }
+
+    if (redraw)
+        glutPostRedisplay();
+
+    glutTimerFunc(wait[code], update, (code + 1) % (sizeof(wait) / sizeof(int)));
+}
+
 // Main routine.
 // Set up OpenGL, define the callbacks and start the main loop
 int main(int argc, char** argv)
@@ -432,7 +471,7 @@ int main(int argc, char** argv)
     initRenderMesh();
 
     // Set up callback functions for key presses
-    glutKeyboardFunc(keyboardFunc); // Handles "normal" ascii symbols
+    glutKeyboardFunc(keyboardFunc); // Handles "normal" ASCII symbols
     glutSpecialFunc(specialFunc);   // Handles "special" keyboard keys
 
      // Set up the callback function for resizing windows
@@ -440,6 +479,9 @@ int main(int argc, char** argv)
 
     // Call this whenever window needs redrawing
     glutDisplayFunc(drawScene);
+
+    // Initialize timer update function with 17ms delay.
+    glutTimerFunc(17, update, 0);
 
     // Start the main loop.  glutMainLoop never returns.
     glutMainLoop();
