@@ -27,6 +27,9 @@ using namespace std;
 // Convert degrees to radians
 #define deg2rad(deg) ((deg) * PI / 180.0)
 
+// GL list for rendering our static object
+GLuint mesh;
+
 // This is the list of points (3D vectors)
 vector<Vector3f> vecv;
 
@@ -303,6 +306,18 @@ void drawScene(void)
     glutSwapBuffers();
 }
 
+// Static object mesh for object to render.
+void initRenderMesh()
+{
+    mesh = glGenLists(1);
+    glNewList(mesh, GL_COMPILE);
+
+    // The outcome of this depends on which .obj is loaded, but it won't change
+    // after program start, so we can determine it as static.
+    renderMesh();
+    glEndList();
+}
+
 // Initialize OpenGL's rendering modes
 void initRendering()
 {
@@ -451,6 +466,9 @@ int main(int argc, char** argv)
 
     // Initialize OpenGL parameters.
     initRendering();
+
+    // Initialize static object mesh.
+    initRenderMesh();
 
     // Set up callback functions for key presses
     glutKeyboardFunc(keyboardFunc); // Handles "normal" ASCII symbols
