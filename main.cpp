@@ -353,7 +353,7 @@ void mouseFunc(int button, int state, int x, int y)
     {
         // Handle mouse presses.
     case GLUT_DOWN:
-        switch (state)
+        switch (button)
         {
             // Enable and initialize mouse scrolling when the user presses the mouse scrolling button.
         case MOUSE_ROTATE_BUTTON:
@@ -369,7 +369,7 @@ void mouseFunc(int button, int state, int x, int y)
 
         // Handle mouse releases.
     case GLUT_UP:
-        switch (state)
+        switch (button)
         {
             // Disable mouse rotation when the user releases the mouse scrolling button.
         case MOUSE_ROTATE_BUTTON:
