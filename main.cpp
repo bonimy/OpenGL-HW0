@@ -349,12 +349,6 @@ void drawScene(void)
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0);
 
-    // Rotate model-view matrix for rendering model, then restore matrix
-    glPushMatrix();
-    glRotatef(spinAngleY, 0, 1, 0);
-    renderMesh();
-    glPopMatrix();
-
     // Set material properties of object
 
     // Get current color in OpenGL-readable RGB format.
@@ -379,6 +373,12 @@ void drawScene(void)
 
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
+
+	// Rotate model-view matrix for rendering model, then restore matrix
+	glPushMatrix();
+	glRotatef(spinAngleY, 0, 1, 0);
+	renderMesh();
+	glPopMatrix();
 
     // Dump the image to the screen.
     glutSwapBuffers();
