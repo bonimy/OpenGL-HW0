@@ -377,7 +377,7 @@ void drawScene(void)
 	// Rotate model-view matrix for rendering model, then restore matrix
 	glPushMatrix();
 	glRotatef(spinAngleY, 0, 1, 0);
-	renderMesh();
+	glCallList(mesh);
 	glPopMatrix();
 
     // Dump the image to the screen.
