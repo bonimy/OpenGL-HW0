@@ -262,6 +262,39 @@ void specialFunc(int key, int x, int y)
     glutPostRedisplay();
 }
 
+Vector3f position(0, 0, 5);
+
+// This function is called whenever a mouse button is pressed or released in the current window.
+void mouseFunc(int button, int state, int x, int y)
+{
+    if (state == GLUT_DOWN)
+    {
+        //cout << button;
+        //cButton = button;
+        //initMouseProj(x, y);
+    }
+    else
+        ;// cButton = 0;
+}
+
+void mouseWheel(int button, int dir, int x, int y)
+{
+    float len = position.abs();
+    if (dir > 0)
+    {
+        // Zoom in
+        position *= 0.9f;
+    }
+    else
+    {
+        // Zoom out
+        position *= 1/0.9f;
+    }
+
+    glutPostRedisplay();
+    return;
+}
+
 // Draws an OpenGL triangle designated by a face vector, which specifies which
 // vertices and normals to index to.
 void drawTriangle(const vector<unsigned> &face)
@@ -312,7 +345,7 @@ void drawScene(void)
 
     // Position the camera at [0,0,5], looking at [0,0,0],
     // with [0,1,0] as the up direction.
-    gluLookAt(0.0, 0.0, 5.0,
+    gluLookAt(position[0], position[1], position[2],
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0);
 
@@ -525,6 +558,11 @@ int main(int argc, char** argv)
     // Set up callback functions for key presses
     glutKeyboardFunc(keyboardFunc); // Handles "normal" ASCII symbols
     glutSpecialFunc(specialFunc);   // Handles "special" keyboard keys
+
+    // Set up callback functions for mouse input
+    glutMouseFunc(mouseFunc);       // Handles mouse button input
+    //glutMotionFunc(motionFunc);     // Handles mouse movement
+    glutMouseWheelFunc(mouseWheel);
 
      // Set up the callback function for resizing windows
     glutReshapeFunc(reshapeFunc);
