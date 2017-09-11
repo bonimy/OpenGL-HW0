@@ -8,6 +8,12 @@ using namespace std;
 
 // Defines
 
+// Define perspective constraints
+#define FIELD_OF_VIEW 50
+#define ASPECT_RATIO 1
+#define NEAR_PERSPECTIVE 1
+#define FAR_PERSPECTIVE 100
+
 // The maximum buffer size for a single cin line.
 // This should be more than enough.
 #define MAX_BUFFER_SIZE 10000
@@ -34,6 +40,9 @@ using namespace std;
 
 // GL list for rendering our static object
 GLuint mesh;
+
+// The fundamental space matrix
+Matrix4f space(Matrix4f::identity());
 
 // This is the list of points (3D vectors)
 vector<Vector3f> vecv;
@@ -73,7 +82,7 @@ struct HCY
     GLfloat chroma; // 0 to 1 inclusive
     GLfloat luma;   // 0 to 1 inclusive
 
-    HCY(GLfloat a, GLfloat h, GLfloat c, GLfloat y)
+    HCY(const GLfloat a, const GLfloat h, const GLfloat c, const GLfloat y)
     {
 #define CLAMP(x) x < 0 ? 0 : (x > 1 ? 1 : x)
         alpha  = CLAMP(a);
@@ -264,28 +273,123 @@ void specialFunc(int key, int x, int y)
 
 Vector3f position(0, 0, 5);
 
+int mButton;
+Vector3f mousePos(0, 0, 0);
+Vector3f lastMousePos(0, 0, 0);
+Vector3f mouseRotator(0, 0, 0);
+
+#define PRINT_VECTOR(v) "(" << (v)[0] << ", " << (v)[1] << ", " << (v)[2] << ")"
+#define PRINT_NAMED_VECTOR(v) #v << ": " << PRINT_VECTOR(v)
+
+void setMousePos(const GLdouble x, const GLdouble y, const GLdouble z)
+{
+	lastMousePos = mousePos;
+	mousePos = Vector3f((float)x, (float)y, (float)z);
+	mouseRotator = mousePos - lastMousePos;
+
+	/*
+	cout <<
+		PRINT_NAMED_VECTOR(mousePos) << ", " <<
+		PRINT_NAMED_VECTOR(lastMousePos) << ", " <<
+		PRINT_NAMED_VECTOR(mouseRotator) << endl;
+		*/
+}
+
+void unprojectMouse(int x, int y)
+{
+	// Get the model view matrix.
+	GLdouble model[16];
+	glGetDoublev(GL_MODELVIEW_MATRIX, model);
+
+	// Get the projection matrix.
+	GLdouble projection[16];
+	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+
+	// Get the viewport matrix.
+	GLint viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+
+	// Get the projected window z-coordinate.
+	GLdouble win[3];
+	gluProject(
+		0.0, 0.0, 0.0,
+		model, projection, viewport,
+		&win[0], &win[2], &win[2]
+	);
+
+	// Get the object's unprojected coordinates.
+	GLdouble obj[3];
+	gluUnProject(
+		(double)x, (double)y, win[2],
+		model, projection, viewport,
+		&obj[0], &obj[1], &obj[2]
+	);
+
+	// Initialize mouse rotator vector with no z-component.
+	setMousePos(obj[0], obj[1], 0.0);
+}
+
 // This function is called whenever a mouse button is pressed or released in the current window.
 void mouseFunc(int button, int state, int x, int y)
 {
-    if (state == GLUT_DOWN)
-    {
-        //cout << button;
-        //cButton = button;
-        //initMouseProj(x, y);
-    }
-    else
-        ;// cButton = 0;
+	switch (state)
+	{
+	case GLUT_DOWN:
+		mButton = button;
+		unprojectMouse(x, y);
+		break;
+	case GLUT_UP:
+		mButton == -1;
+		setMousePos(NAN, NAN, NAN);
+		break;
+	}
+}
+
+#define PRINT_MATRIX(m) fixed << showpos << \
+m[0] << "\t" << m[1] << "\t" << m[2] << "\t" << m[3] << endl << \
+m[4] << "\t" << m[5] << "\t" << m[6] << "\t" << m[7] << endl << \
+m[8] << "\t" << m[9] << "\t" << m[10] << "\t" << m[11] << endl << \
+m[12] << "\t" << m[13] << "\t" << m[14] << "\t" << m[15] << endl
+
+void motionFunc(int x, int y)
+{
+	switch (mButton)
+	{
+	case GLUT_LEFT_BUTTON:
+		if (isnan(mousePos[2]))
+			break;
+
+		unprojectMouse(x, y);
+
+		if (!mouseRotator.absSquared())
+			break;
+
+		space = Matrix4f::rotateY(mouseRotator[0]) * space;
+
+		space = Matrix4f::rotateX(mouseRotator[1]) * space;
+
+		cout.precision(3);
+		cout << mouseRotator[0] << endl;
+		//cout << PRINT_MATRIX(space) << endl;
+
+		glutPostRedisplay();
+		break;
+	case GLUT_RIGHT_BUTTON:
+		break;
+	case GLUT_MIDDLE_BUTTON:
+		break;
+	}
 }
 
 void mouseWheel(int button, int dir, int x, int y)
 {
-    float len = position.abs();
-    if (dir > 0)
+	float result = position.abs();
+    if (dir > 0 && result * 0.9f > NEAR_PERSPECTIVE)
     {
         // Zoom in
         position *= 0.9f;
     }
-    else
+    else if (dir < 0 && result / 0.9f < FAR_PERSPECTIVE)
     {
         // Zoom out
         position *= 1/0.9f;
@@ -349,7 +453,17 @@ void drawScene(void)
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0);
 
+	glPushMatrix();
+
+	glMultMatrixf(space);
+
     // Set material properties of object
+
+	GLdouble sp[16];
+	glGetDoublev(GL_MODELVIEW_MATRIX, sp);
+
+	//cout.precision(3);
+	//cout << PRINT_MATRIX(sp) << endl;
 
     // Get current color in OpenGL-readable RGB format.
     RGB diffuseRgb;
@@ -378,6 +492,8 @@ void drawScene(void)
 	glPushMatrix();
 	glRotatef(spinAngleY, 0, 1, 0);
 	glCallList(mesh);
+	glPopMatrix();
+
 	glPopMatrix();
 
     // Dump the image to the screen.
@@ -416,11 +532,17 @@ void reshapeFunc(int w, int h)
         glViewport(0, (h - w) / 2, w, w);
     }
 
+
     // Set up a perspective view, with square aspect ratio
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     // 50 degree FOV, uniform aspect ratio, near = 1, far = 100
-    gluPerspective(50.0, 1.0, 1.0, 100.0);
+    gluPerspective(
+		FIELD_OF_VIEW,
+		ASPECT_RATIO,
+		NEAR_PERSPECTIVE,
+		FAR_PERSPECTIVE
+	);
 }
 
 void loadInput()
@@ -561,7 +683,7 @@ int main(int argc, char** argv)
 
     // Set up callback functions for mouse input
     glutMouseFunc(mouseFunc);       // Handles mouse button input
-    //glutMotionFunc(motionFunc);     // Handles mouse movement
+    glutMotionFunc(motionFunc);     // Handles mouse movement
     glutMouseWheelFunc(mouseWheel);
 
      // Set up the callback function for resizing windows
