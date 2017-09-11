@@ -6,16 +6,14 @@
 #include "vecmath.h"
 using namespace std;
 
-// Defines
+// Define important constants.
 
-// Define perspective constraints
+// Define perspective constraints.
 #define FIELD_OF_VIEW 50
-#define ASPECT_RATIO 1
 #define NEAR_PERSPECTIVE 1
 #define FAR_PERSPECTIVE 100
 
 // The maximum buffer size for a single cin line.
-// This should be more than enough.
 #define MAX_BUFFER_SIZE 10000
 
 // The rotation delta angle to rotate the mesh object every frame.
@@ -27,72 +25,89 @@ using namespace std;
 // Shift amount for light position change.
 #define LIGHT_SHIFT_DEGREES   15
 
-// Mathematical constant
+// The mouse button to assign to world rotating.
+#define MOUSE_ROTATE_BUTTON GLUT_LEFT_BUTTON
+
+// The mouse rotation sensitivity when drag rotating an object.
+#define MOUSE_ROTATE_FACTOR 0.5
+
+// The mouse scaling factor when zooming in or out of an object.
+#define MOUSE_SCALE_FACTOR 1.1
+
+// Mathematical constant.
 #define PI 3.14159265358972
 
-// Convert radians to degrees
+// Convert radians to degrees.
 #define rad2deg(rad) ((rad) * 180.0 / PI)
 
-// Convert degrees to radians
+// Convert degrees to radians.
 #define deg2rad(deg) ((deg) * PI / 180.0)
 
-// Globals
+// Define global variables.
 
-// GL list for rendering our static object
+// GL list for rendering our static object.
 GLuint mesh;
 
-// The fundamental space matrix
+// GL list for rendering our grid;
+GLuint grid;
+
+// Defines the physical position of the camera. The object is always at the origin.
+Vector3f position(0, 0, 5);
+
+// The rotation tensor for the static object (used for mouse rotating).
 Matrix4f space(Matrix4f::identity());
 
-// This is the list of points (3D vectors)
+// This is the list of points (3D vectors).
 vector<Vector3f> vecv;
 
 // This is the list of normals (also 3D vectors)
 vector<Vector3f> vecn;
 
-// This is the list of faces (indices into vecv and vecn)
+// This is the list of faces (indices into vecv and vecn).
 vector<vector<unsigned> > vecf;
 
-// Light position
+// Light position for world.
 Vector4f Lt0pos(1, 1, 5, 1);
 
-// Millisecond wait times for update functions. Gives us 60FPS.
+// Millisecond wait times indexed by frame. Sums to 60 frames per second.
 int timerInterval[] = { 17, 16, 16 };
 
-// Determines whether the object is being rotated by an 'r' key press.
+// Determines whether the object should have an animated rotation.
 bool meshSpinAnimate;
 
-// Determines whether to cycle through hue colors.
+// Determines whether the object should have an animated color cycle.
 bool diffuseColorAnimate;
 
 // The current Y-rotated angle of the rendered object.
 GLfloat spinAngleY = 0;
 
-// Rotates the light transformation matrix
+// Rotates the light transformation matrix.
 void rotateLightMatrix(const Vector3f &direction, float radians)
 {
     Lt0pos = Matrix4f::rotation(direction, radians) * Lt0pos;
 }
 
-// Represents a color by its hue, chroma, and luma
+// Represents a color by its hue, chroma, and luma.
 struct HCY
 {
-    GLfloat alpha;  // 0 to 1 inclusive
-    GLfloat hue;    // 0 to 1 inclusive
-    GLfloat chroma; // 0 to 1 inclusive
-    GLfloat luma;   // 0 to 1 inclusive
+    GLfloat alpha;
+    GLfloat hue;
+    GLfloat chroma;
+    GLfloat luma;
 
     HCY(const GLfloat a, const GLfloat h, const GLfloat c, const GLfloat y)
     {
 #define CLAMP(x) x < 0 ? 0 : (x > 1 ? 1 : x)
+
         alpha = CLAMP(a);
         hue = CLAMP(h);
         chroma = CLAMP(c);
         luma = CLAMP(y);
+
 #undef CLAMP
     }
 
-    // Rotate color's hue by given degrees
+    // Rotate color's hue by given degrees.
     void rotateHue(const GLfloat degrees)
     {
         float delta = degrees / 360.0f;
@@ -106,12 +121,11 @@ struct HCY
         while (hue < 0)
             hue += 1;
     }
-} diffuseHsl(1, 0, 1, 0.5); // The current display color in HCY form.
+} meshHcyColor(1, 0, 1, 0.5); // The current display color in HCY form.
 
-           // Represents an OpenGL-styled color of floats
+// Represents an OpenGL-styled color of floats
 union RGB
 {
-    // 0 to 1 inclusive
     GLfloat values[4];
     struct
     {
@@ -124,38 +138,57 @@ union RGB
 void hcy2rgb(const struct HCY &hcy, union RGB &rgb)
 {
     GLfloat chroma = hcy.chroma;
+
+    // Bound hue to [0, 6) since we have different cases depending on which integers the hue will be between.
     GLfloat hue = hcy.hue * 6;
+
+    // Initialize color to empty.
     GLfloat r = 0.f;
     GLfloat g = 0.f;
     GLfloat b = 0.f;
 
+    // Alpha channel is a simple copy.
+    rgb.alpha = hcy.alpha;
+
+    // Only care about color if there is a present chroma.
     if (chroma > 0)
     {
+        // If hue's bounds are [0, 1), we have a predominately red-to-yellow color.
         if (hue >= 0 && hue < 1)
         {
             r = chroma;
             g = chroma * hue;
         }
+
+        // [1, 2) is a yellow-to-green.
         else if (hue >= 1 && hue < 2)
         {
             r = chroma * (2 - hue);
             g = chroma;
         }
+
+        // Green-to-cyan.
         else if (hue >= 2 && hue < 3)
         {
             g = chroma;
             b = chroma * (hue - 2);
         }
+
+        // Cyan-to-blue.
         else if (hue >= 3 && hue < 4)
         {
             g = chroma * (4 - hue);
             b = chroma;
         }
+
+        // Blue-to-magenta.
         else if (hue >= 4 && hue < 5)
         {
             r = chroma * (hue - 4);
             b = chroma;
         }
+
+        // This lost possible result is [5, 6) and is a magenta-to-red color.
         else //if (hue >= 5 && hue < 6)
         {
             r = chroma;
@@ -163,33 +196,22 @@ void hcy2rgb(const struct HCY &hcy, union RGB &rgb)
         }
     }
 
-    // Color channel contributions (sums to unity).
+    // Each color has a different defined weight in the luma color space.
 #define REDWEIGHT   0.299f
 #define GREENWEIGHT 0.587f
 #define BLUEWEIGHT  0.114f
 
+    // The match value defines the "colorful intensity" of the color.
     GLfloat match = hcy.luma - (REDWEIGHT * r + GREENWEIGHT * g + BLUEWEIGHT * b);
 
 #undef REDWEIGHT
 #undef GREENWEIGHT
 #undef BLUEWEIGHT
 
-    rgb.alpha = hcy.alpha;
+    // The final color result.
     rgb.red = r + match;
     rgb.green = g + match;
     rgb.blue = b + match;
-}
-
-// These are convenience functions which allow us to call OpenGL
-// methods on Vec3d objects
-inline void glVertex(const Vector3f &a)
-{
-    glVertex3fv(a);
-}
-
-inline void glNormal(const Vector3f &a)
-{
-    glNormal3fv(a);
 }
 
 // Toggles smooth color change animation on or off.
@@ -244,7 +266,6 @@ void keyboardFunc(unsigned char key, int x, int y)
 }
 
 // This function is called whenever a "Special" key press is received.
-// Right now, it's handling the arrow keys.
 void specialFunc(int key, int x, int y)
 {
     // Calculate diffuse light position's change in radians.
@@ -270,20 +291,27 @@ void specialFunc(int key, int x, int y)
     glutPostRedisplay();
 }
 
-Vector3f position(0, 0, 5);
+// The current mouse state.
+bool mouseRotationEnabled;
 
-int mButton;
+// The current mouse position.
 Vector3f mousePos(0, 0, 0);
-Vector3f lastMousePos(0, 0, 0);
-Vector3f mouseRotator(0, 0, 0);
 
+// The last mouse position.
+Vector3f lastMousePos(0, 0, 0);
+
+// The mouse delta change is used to get the X and Y rotation angles.
+Vector3f mouseDelta(0, 0, 0);
+
+// Updates the current, last, and delta mouse positions.
 void setMousePos(const GLdouble x, const GLdouble y, const GLdouble z)
 {
     lastMousePos = mousePos;
     mousePos = Vector3f((float)x, (float)y, (float)z);
-    mouseRotator = mousePos - lastMousePos;
+    mouseDelta = mousePos - lastMousePos;
 }
 
+// Unprojects screen coordinates and sets the result as the current mouse position.
 void unprojectMouse(int x, int y)
 {
     // Get the model view matrix.
@@ -323,61 +351,88 @@ void mouseFunc(int button, int state, int x, int y)
 {
     switch (state)
     {
+        // Handle mouse presses.
     case GLUT_DOWN:
-        mButton = button;
-        unprojectMouse(x, y);
+        switch (state)
+        {
+            // Enable and initialize mouse scrolling when the user presses the mouse scrolling button.
+        case MOUSE_ROTATE_BUTTON:
+            mouseRotationEnabled = true;
+            unprojectMouse(x, y);
+            break;
+
+            // Don't break scrolling if the user simultaneously presses an unhandled mouse button.
+        default:
+            break;
+        }
         break;
+
+        // Handle mouse releases.
     case GLUT_UP:
-        mButton == -1;
-        setMousePos(NAN, NAN, NAN);
+        switch (state)
+        {
+            // Disable mouse rotation when the user releases the mouse scrolling button.
+        case MOUSE_ROTATE_BUTTON:
+            mouseRotationEnabled = false;
+            break;
+
+            // Don't remove scrolling if the user releases an unhandled mouse button.
+        default:
+            break;
+        }
         break;
     }
 }
 
+// This function is called whenever a mouse button is held down and the mouse is moving.
 void motionFunc(int x, int y)
 {
-    switch (mButton)
+    // Only handle if mouse rotation is enabled.
+    if (mouseRotationEnabled)
     {
-    case GLUT_LEFT_BUTTON:
-        if (isnan(mousePos[2]))
-            break;
-
+        // Update the current mouse position.
         unprojectMouse(x, y);
 
-        if (!mouseRotator.absSquared())
-            break;
+        // Rotate the view space by the mouse position change.
+        space = Matrix4f::rotateY(mouseDelta[0] * (float)MOUSE_ROTATE_FACTOR) * space;
+        space = Matrix4f::rotateX(mouseDelta[1] * (float)MOUSE_ROTATE_FACTOR) * space;
 
-        space = Matrix4f::rotateY(mouseRotator[0]) * space;
-        space = Matrix4f::rotateX(mouseRotator[1]) * space;
-
+        // Redraw object to see our changes.
         glutPostRedisplay();
-        break;
-    case GLUT_RIGHT_BUTTON:
-        break;
-    case GLUT_MIDDLE_BUTTON:
-        break;
     }
 }
 
 void mouseWheel(int button, int dir, int x, int y)
 {
-    float result = position.abs();
-    if (dir > 0 && result * 0.9f > NEAR_PERSPECTIVE)
+    // Get the current camera-to-object length.
+    float length = position.abs();
+
+    // Zooming in
+    if (dir > 0)
     {
-        // Zoom in
-        position *= 0.9f;
-    }
-    else if (dir < 0 && result / 0.9f < FAR_PERSPECTIVE)
-    {
-        // Zoom out
-        position *= 1 / 0.9f;
+        // Do not rescale if it puts us outside of our near perspective bounds.
+        if (length / MOUSE_SCALE_FACTOR < NEAR_PERSPECTIVE)
+            return;
+
+        // Zooming in reduces the distance to the object.
+        position *= 1 / (float)MOUSE_SCALE_FACTOR;
     }
 
+    // Zooming out
+    else if (dir < 0)
+    {
+        // Do not rescale if it puts us outside of our far perspective bounds.
+        if (length * MOUSE_SCALE_FACTOR > FAR_PERSPECTIVE)
+            return;
+
+        position *= (float)MOUSE_SCALE_FACTOR;
+    }
+
+    // Redraw object to see our changes.
     glutPostRedisplay();
-    return;
 }
 
-// Draws an OpenGL triangle designated by a face vector, which specifies which
+// Draws a triangle designated by a face vector, which specifies which
 // vertices and normals to index to.
 void drawTriangle(const vector<unsigned> &face)
 {
@@ -400,7 +455,10 @@ glVertex3d(vecv[face[index+0]][0], vecv[face[index+0]][1], vecv[face[index+0]][2
 // Renders the loaded mesh, or the GL solid teapot if no file was specified.
 void renderMesh()
 {
+    // Determine the number of faces.
     int fsize = vecf.size();
+
+    // If we have a nonzero number of faces, draw the selected object.
     if (fsize)
     {
         glBegin(GL_TRIANGLES);
@@ -411,8 +469,84 @@ void renderMesh()
         }
         glEnd();
     }
-    else // Draw the teapot if no mesh is loaded.
+
+    // Draw the teapot if no mesh is loaded.
+    else
         glutSolidTeapot(1.0);
+}
+
+// Renders a 20 x 20 square grid.
+void renderGrid()
+{
+    glBegin(GL_LINES);
+
+#define GRID_SIZE 10
+
+    // Remove possibility of floating errors by doing an integer for-loop.
+    for (int i = -GRID_SIZE; i <= GRID_SIZE; i++)
+    {
+        // Get the relative position of the current line.
+        float step = (float)i / GRID_SIZE;
+
+        // Draw both sets of lines at once.
+        glVertex3f(step, 0, -1.0);
+        glVertex3f(step, 0, +1.0);
+
+        glVertex3f(-1.0, 0, step);
+        glVertex3f(+1.0, 0, step);
+    }
+
+#undef GRID_SIZE
+
+    glEnd();
+}
+
+
+// Draws a gray XY grid to help orient the user.
+void drawGrid()
+{
+    // Save the current lighting attributes.
+    glPushAttrib(GL_LIGHTING_BIT);
+
+    // Disable lighting effects for the grid.
+    glDisable(GL_LIGHTING);
+
+    // Draw grid of unit thickness.
+    glLineWidth(1.0f);
+
+    // Draw grid with a solid gray color.
+    glColor3f(0.5, 0.5, 0.5);
+
+    // Save the current modelview matrix.
+    glPushMatrix();
+
+    // Scale the grid to an appropriate size.
+    glScalef(10, 10, 10);
+
+    // Draw the static grid.
+    glCallList(grid);
+
+    // Restore the modelview matrix.
+    glPopMatrix();
+
+    // Restore the lighting attributes.
+    glPopAttrib();
+}
+
+// Draws the mesh at the grid origin according and appropriately rotated.
+void drawMesh()
+{
+    // Save the current modelview matrix.
+    glPushMatrix();
+
+    // Rotate the object according to how much it has spun.
+    glRotatef(spinAngleY, 0, 1, 0);
+
+    // Render the static mesh object.
+    glCallList(mesh);
+
+    // Restore the modelview matrix.
+    glPopMatrix();
 }
 
 // This function is responsible for displaying the object.
@@ -422,7 +556,7 @@ void drawScene(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Initialize the model-view matrix
-    glMatrixMode(GL_MODELVIEW);  // Current matrix affects objects positions
+    glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
     // Position the camera at [0,0,5], looking at [0,0,0],
@@ -431,18 +565,23 @@ void drawScene(void)
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0);
 
+    // Save the modelview matrix. This is our home-world space (useful for mouse scrolling).
     glPushMatrix();
 
+    // Rotate the world space.
     glMultMatrixf(space);
+
+    //Draw a grid to show how our world is oriented.
+    drawGrid();
 
     // Set material properties of object
 
     // Get current color in OpenGL-readable RGB format.
-    RGB diffuseRgb;
-    hcy2rgb(diffuseHsl, diffuseRgb);
+    RGB meshRgbColor;
+    hcy2rgb(meshHcyColor, meshRgbColor);
 
-    // Assign the current RGB color as the diffuse color.
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, diffuseRgb.values);
+    // Set the material color for our static object.
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, meshRgbColor.values);
 
     // Define specular color and shininess
     GLfloat specColor[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -457,30 +596,33 @@ void drawScene(void)
     // Light color (RGBA)
     GLfloat Lt0diff[] = { 1.0,1.0,1.0,1.0 };
 
+    // Set light diffusiion and position.
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
 
-    // Rotate model-view matrix for rendering model, then restore matrix
-    glPushMatrix();
-    glRotatef(spinAngleY, 0, 1, 0);
-    glCallList(mesh);
-    glPopMatrix();
+    // Draw our static object.
+    drawMesh();
 
+    // Restore our modelview matrix.
     glPopMatrix();
 
     // Dump the image to the screen.
     glutSwapBuffers();
 }
 
-// Static object mesh for object to render.
-void initRenderMesh()
+// Creates a static mesh using the supplied render function.
+void createStaticList(GLuint &glList, void func())
 {
-    mesh = glGenLists(1);
-    glNewList(mesh, GL_COMPILE);
+    // Generate the new single list.
+    glList = glGenLists(1);
 
-    // The outcome of this depends on which .obj is loaded, but it won't change
-    // after program start, so we can determine it as static.
-    renderMesh();
+    // Initialize list function.
+    glNewList(glList, GL_COMPILE);
+
+    // Do the list function.
+    func();
+
+    // End list call.
     glEndList();
 }
 
@@ -496,21 +638,15 @@ void initRendering()
 // w, h - width and height of the window in pixels.
 void reshapeFunc(int w, int h)
 {
-    // Always use the largest square view-port possible
-    if (w > h) {
-        glViewport((w - h) / 2, 0, h, h);
-    }
-    else {
-        glViewport(0, (h - w) / 2, w, w);
-    }
+    // Set up viewport to use full screen.
+    glViewport(0, 0, w, h);
 
-    // Set up a perspective view, with square aspect ratio
+    // Set up a perspective view.
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    // 50 degree FOV, uniform aspect ratio, near = 1, far = 100
     gluPerspective(
         FIELD_OF_VIEW,
-        ASPECT_RATIO,
+        (double)w / (double)h,
         NEAR_PERSPECTIVE,
         FAR_PERSPECTIVE
     );
@@ -613,7 +749,7 @@ void update(int code)
     // Update diffuse color
     if (diffuseColorAnimate)
     {
-        diffuseHsl.rotateHue(HUE_SHIFT_DEGREES);
+        meshHcyColor.rotateHue(HUE_SHIFT_DEGREES);
         redraw = true;
     }
 
@@ -645,8 +781,11 @@ int main(int argc, char** argv)
     // Initialize OpenGL parameters.
     initRendering();
 
-    // Initialize static object mesh.
-    initRenderMesh();
+    // Create static object mesh.
+    createStaticList(mesh, renderMesh);
+
+    // Create static grid mesh.
+    createStaticList(grid, renderGrid);
 
     // Set up callback functions for key presses
     glutKeyboardFunc(keyboardFunc); // Handles "normal" ASCII symbols
