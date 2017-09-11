@@ -69,6 +69,18 @@ vector<vector<unsigned> > vecf;
 // Light position for world.
 Vector4f Lt0pos(1, 1, 5, 1);
 
+// The current mouse state.
+bool mouseRotationEnabled;
+
+// The current mouse position.
+Vector3f mousePos(0, 0, 0);
+
+// The last mouse position.
+Vector3f lastMousePos(0, 0, 0);
+
+// The mouse delta change is used to get the X and Y rotation angles.
+Vector3f mouseDelta(0, 0, 0);
+
 // Millisecond wait times indexed by frame. Sums to 60 frames per second.
 int timerInterval[] = { 17, 16, 16 };
 
@@ -290,18 +302,6 @@ void specialFunc(int key, int x, int y)
     // this will refresh the screen so that the user sees the light position
     glutPostRedisplay();
 }
-
-// The current mouse state.
-bool mouseRotationEnabled;
-
-// The current mouse position.
-Vector3f mousePos(0, 0, 0);
-
-// The last mouse position.
-Vector3f lastMousePos(0, 0, 0);
-
-// The mouse delta change is used to get the X and Y rotation angles.
-Vector3f mouseDelta(0, 0, 0);
 
 // Updates the current, last, and delta mouse positions.
 void setMousePos(const GLdouble x, const GLdouble y, const GLdouble z)
@@ -652,6 +652,7 @@ void reshapeFunc(int w, int h)
     );
 }
 
+// Loads an OBJ file mesh from the standard input stream.
 void loadInput()
 {
     // load the OBJ file here
@@ -734,6 +735,7 @@ void loadInput()
     } while (!cin.eof());
 }
 
+// This function is called every timer update (60 times per second).
 void update(int code)
 {
     // Assume animation is disabled until a flag enables it.
