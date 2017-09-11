@@ -85,10 +85,10 @@ struct HCY
     HCY(const GLfloat a, const GLfloat h, const GLfloat c, const GLfloat y)
     {
 #define CLAMP(x) x < 0 ? 0 : (x > 1 ? 1 : x)
-        alpha  = CLAMP(a);
-        hue    = CLAMP(h);
+        alpha = CLAMP(a);
+        hue = CLAMP(h);
         chroma = CLAMP(c);
-        luma   = CLAMP(y);
+        luma = CLAMP(y);
 #undef CLAMP
     }
 
@@ -106,7 +106,6 @@ struct HCY
         while (hue < 0)
             hue += 1;
     }
-
 } diffuseHsl(1, 0, 1, 0.5); // The current display color in HCY form.
 
            // Represents an OpenGL-styled color of floats
@@ -278,112 +277,91 @@ Vector3f mousePos(0, 0, 0);
 Vector3f lastMousePos(0, 0, 0);
 Vector3f mouseRotator(0, 0, 0);
 
-#define PRINT_VECTOR(v) "(" << (v)[0] << ", " << (v)[1] << ", " << (v)[2] << ")"
-#define PRINT_NAMED_VECTOR(v) #v << ": " << PRINT_VECTOR(v)
-
 void setMousePos(const GLdouble x, const GLdouble y, const GLdouble z)
 {
-	lastMousePos = mousePos;
-	mousePos = Vector3f((float)x, (float)y, (float)z);
-	mouseRotator = mousePos - lastMousePos;
-
-	/*
-	cout <<
-		PRINT_NAMED_VECTOR(mousePos) << ", " <<
-		PRINT_NAMED_VECTOR(lastMousePos) << ", " <<
-		PRINT_NAMED_VECTOR(mouseRotator) << endl;
-		*/
+    lastMousePos = mousePos;
+    mousePos = Vector3f((float)x, (float)y, (float)z);
+    mouseRotator = mousePos - lastMousePos;
 }
 
 void unprojectMouse(int x, int y)
 {
-	// Get the model view matrix.
-	GLdouble model[16];
-	glGetDoublev(GL_MODELVIEW_MATRIX, model);
+    // Get the model view matrix.
+    GLdouble model[16];
+    glGetDoublev(GL_MODELVIEW_MATRIX, model);
 
-	// Get the projection matrix.
-	GLdouble projection[16];
-	glGetDoublev(GL_PROJECTION_MATRIX, projection);
+    // Get the projection matrix.
+    GLdouble projection[16];
+    glGetDoublev(GL_PROJECTION_MATRIX, projection);
 
-	// Get the viewport matrix.
-	GLint viewport[4];
-	glGetIntegerv(GL_VIEWPORT, viewport);
+    // Get the viewport matrix.
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
 
-	// Get the projected window z-coordinate.
-	GLdouble win[3];
-	gluProject(
-		0.0, 0.0, 0.0,
-		model, projection, viewport,
-		&win[0], &win[2], &win[2]
-	);
+    // Get the projected window z-coordinate.
+    GLdouble win[3];
+    gluProject(
+        0.0, 0.0, 0.0,
+        model, projection, viewport,
+        &win[0], &win[2], &win[2]
+    );
 
-	// Get the object's unprojected coordinates.
-	GLdouble obj[3];
-	gluUnProject(
-		(double)x, (double)y, win[2],
-		model, projection, viewport,
-		&obj[0], &obj[1], &obj[2]
-	);
+    // Get the object's unprojected coordinates.
+    GLdouble obj[3];
+    gluUnProject(
+        (double)x, (double)y, win[2],
+        model, projection, viewport,
+        &obj[0], &obj[1], &obj[2]
+    );
 
-	// Initialize mouse rotator vector with no z-component.
-	setMousePos(obj[0], obj[1], 0.0);
+    // Initialize mouse rotator vector with no z-component.
+    setMousePos(obj[0], obj[1], 0.0);
 }
 
 // This function is called whenever a mouse button is pressed or released in the current window.
 void mouseFunc(int button, int state, int x, int y)
 {
-	switch (state)
-	{
-	case GLUT_DOWN:
-		mButton = button;
-		unprojectMouse(x, y);
-		break;
-	case GLUT_UP:
-		mButton == -1;
-		setMousePos(NAN, NAN, NAN);
-		break;
-	}
+    switch (state)
+    {
+    case GLUT_DOWN:
+        mButton = button;
+        unprojectMouse(x, y);
+        break;
+    case GLUT_UP:
+        mButton == -1;
+        setMousePos(NAN, NAN, NAN);
+        break;
+    }
 }
-
-#define PRINT_MATRIX(m) fixed << showpos << \
-m[0] << "\t" << m[1] << "\t" << m[2] << "\t" << m[3] << endl << \
-m[4] << "\t" << m[5] << "\t" << m[6] << "\t" << m[7] << endl << \
-m[8] << "\t" << m[9] << "\t" << m[10] << "\t" << m[11] << endl << \
-m[12] << "\t" << m[13] << "\t" << m[14] << "\t" << m[15] << endl
 
 void motionFunc(int x, int y)
 {
-	switch (mButton)
-	{
-	case GLUT_LEFT_BUTTON:
-		if (isnan(mousePos[2]))
-			break;
+    switch (mButton)
+    {
+    case GLUT_LEFT_BUTTON:
+        if (isnan(mousePos[2]))
+            break;
 
-		unprojectMouse(x, y);
+        unprojectMouse(x, y);
 
-		if (!mouseRotator.absSquared())
-			break;
+        if (!mouseRotator.absSquared())
+            break;
 
-		space = Matrix4f::rotateY(mouseRotator[0]) * space;
+        space = Matrix4f::rotateY(mouseRotator[0]) * space;
+        space = Matrix4f::rotateX(mouseRotator[1]) * space;
 
-		space = Matrix4f::rotateX(mouseRotator[1]) * space;
-
-		cout.precision(3);
-		cout << mouseRotator[0] << endl;
-		//cout << PRINT_MATRIX(space) << endl;
-
-		glutPostRedisplay();
-		break;
-	case GLUT_RIGHT_BUTTON:
-		break;
-	case GLUT_MIDDLE_BUTTON:
-		break;
-	}
+        glutPostRedisplay();
+        break;
+    case GLUT_RIGHT_BUTTON:
+        break;
+    case GLUT_MIDDLE_BUTTON:
+        break;
+    }
 }
 
 void mouseWheel(int button, int dir, int x, int y)
 {
-	float result = position.abs();
+    float result = position.abs();
     if (dir > 0 && result * 0.9f > NEAR_PERSPECTIVE)
     {
         // Zoom in
@@ -392,7 +370,7 @@ void mouseWheel(int button, int dir, int x, int y)
     else if (dir < 0 && result / 0.9f < FAR_PERSPECTIVE)
     {
         // Zoom out
-        position *= 1/0.9f;
+        position *= 1 / 0.9f;
     }
 
     glutPostRedisplay();
@@ -453,17 +431,11 @@ void drawScene(void)
         0.0, 0.0, 0.0,
         0.0, 1.0, 0.0);
 
-	glPushMatrix();
+    glPushMatrix();
 
-	glMultMatrixf(space);
+    glMultMatrixf(space);
 
     // Set material properties of object
-
-	GLdouble sp[16];
-	glGetDoublev(GL_MODELVIEW_MATRIX, sp);
-
-	//cout.precision(3);
-	//cout << PRINT_MATRIX(sp) << endl;
 
     // Get current color in OpenGL-readable RGB format.
     RGB diffuseRgb;
@@ -488,13 +460,13 @@ void drawScene(void)
     glLightfv(GL_LIGHT0, GL_DIFFUSE, Lt0diff);
     glLightfv(GL_LIGHT0, GL_POSITION, Lt0pos);
 
-	// Rotate model-view matrix for rendering model, then restore matrix
-	glPushMatrix();
-	glRotatef(spinAngleY, 0, 1, 0);
-	glCallList(mesh);
-	glPopMatrix();
+    // Rotate model-view matrix for rendering model, then restore matrix
+    glPushMatrix();
+    glRotatef(spinAngleY, 0, 1, 0);
+    glCallList(mesh);
+    glPopMatrix();
 
-	glPopMatrix();
+    glPopMatrix();
 
     // Dump the image to the screen.
     glutSwapBuffers();
@@ -532,17 +504,16 @@ void reshapeFunc(int w, int h)
         glViewport(0, (h - w) / 2, w, w);
     }
 
-
     // Set up a perspective view, with square aspect ratio
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     // 50 degree FOV, uniform aspect ratio, near = 1, far = 100
     gluPerspective(
-		FIELD_OF_VIEW,
-		ASPECT_RATIO,
-		NEAR_PERSPECTIVE,
-		FAR_PERSPECTIVE
-	);
+        FIELD_OF_VIEW,
+        ASPECT_RATIO,
+        NEAR_PERSPECTIVE,
+        FAR_PERSPECTIVE
+    );
 }
 
 void loadInput()
@@ -686,7 +657,7 @@ int main(int argc, char** argv)
     glutMotionFunc(motionFunc);     // Handles mouse movement
     glutMouseWheelFunc(mouseWheel);
 
-     // Set up the callback function for resizing windows
+    // Set up the callback function for resizing windows
     glutReshapeFunc(reshapeFunc);
 
     // Call this whenever window needs redrawing
