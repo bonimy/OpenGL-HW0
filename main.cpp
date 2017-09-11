@@ -29,7 +29,7 @@ using namespace std;
 #define MOUSE_ROTATE_BUTTON GLUT_LEFT_BUTTON
 
 // The mouse rotation sensitivity when drag rotating an object.
-#define MOUSE_ROTATE_FACTOR 0.5
+#define MOUSE_ROTATE_FACTOR 4
 
 // The mouse scaling factor when zooming in or out of an object.
 #define MOUSE_SCALE_FACTOR 1.1
@@ -394,8 +394,8 @@ void motionFunc(int x, int y)
         unprojectMouse(x, y);
 
         // Rotate the view space by the mouse position change.
-        space = Matrix4f::rotateY(mouseDelta[0] * (float)MOUSE_ROTATE_FACTOR) * space;
-        space = Matrix4f::rotateX(mouseDelta[1] * (float)MOUSE_ROTATE_FACTOR) * space;
+        space = Matrix4f::rotateY(mouseDelta[0] * (float)MOUSE_ROTATE_FACTOR / position.abs()) * space;
+        space = Matrix4f::rotateX(mouseDelta[1] * (float)MOUSE_ROTATE_FACTOR / position.abs()) * space;
 
         // Redraw object to see our changes.
         glutPostRedisplay();
