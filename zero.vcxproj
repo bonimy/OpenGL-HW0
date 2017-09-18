@@ -76,6 +76,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Surface.cpp" />
     <ClCompile Include="vecmath\Matrix2f.cpp" />
     <ClCompile Include="vecmath\Matrix3f.cpp" />
     <ClCompile Include="vecmath\Matrix4f.cpp" />
@@ -96,6 +97,7 @@
     <ClInclude Include="include\vecmath\Vector2f.h" />
     <ClInclude Include="include\vecmath\Vector3f.h" />
     <ClInclude Include="include\vecmath\Vector4f.h" />
+    <ClInclude Include="Surface.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
