@@ -6,6 +6,8 @@
 #include "vecmath.h"
 using namespace std;
 
+#include "Surface.h"
+
 // Define important constants.
 
 // Define perspective constraints.
@@ -57,14 +59,8 @@ Vector3f position(0, 0, 5);
 // The rotation tensor for the static object (used for mouse rotating).
 Matrix4f space(Matrix4f::identity());
 
-// This is the list of points (3D vectors).
-vector<Vector3f> vecv;
-
-// This is the list of normals (also 3D vectors)
-vector<Vector3f> vecn;
-
-// This is the list of faces (indices into vecv and vecn).
-vector<vector<unsigned> > vecf;
+// The unsimplified, primary drawing surface object.
+Surface surface;
 
 // Light position for world.
 Vector4f Lt0pos(1, 1, 5, 1);
@@ -432,41 +428,17 @@ void mouseWheel(int button, int dir, int x, int y)
     glutPostRedisplay();
 }
 
-// Draws a triangle designated by a face vector, which specifies which
-// vertices and normals to index to.
-void drawTriangle(const vector<unsigned> &face)
-{
-#define DRAWPOINT(index) \
-glNormal3d(vecn[face[index+2]][0], vecn[face[index+2]][1], vecn[face[index+2]][2]);\
-glVertex3d(vecv[face[index+0]][0], vecv[face[index+0]][1], vecv[face[index+0]][2])
-
-    // Draw first point
-    DRAWPOINT(0);
-
-    // Draw second point
-    DRAWPOINT(3);
-
-    // Draw last point
-    DRAWPOINT(6);
-
-#undef DRAWPOINT
-}
-
 // Renders the loaded mesh, or the GL solid teapot if no file was specified.
 void renderMesh()
 {
     // Determine the number of faces.
-    int fsize = vecf.size();
+    int fsize = 1;// vecf.size();
 
     // If we have a nonzero number of faces, draw the selected object.
     if (fsize)
     {
         glBegin(GL_TRIANGLES);
-        for (int i = 0; i < fsize; i++)
-        {
-            // Draw each triangle
-            drawTriangle(vecf[i]);
-        }
+        surface.drawSurface();
         glEnd();
     }
 
@@ -696,7 +668,7 @@ void loadInput()
             ss >> v[0] >> v[1] >> v[2];
 
             // Store to vertex array
-            vecv.push_back(v);
+            surface.addVertex(v);
             continue;
         }
 
@@ -707,7 +679,7 @@ void loadInput()
             ss >> v[0] >> v[1] >> v[2];
 
             // Store to vertex array
-            vecn.push_back(v);
+            surface.addNormal(v);
             continue;
         }
 
@@ -729,7 +701,7 @@ void loadInput()
             }
 
             // push complete face vector
-            vecf.push_back(face);
+            surface.addFace(face);
             continue;
         }
     } while (!cin.eof());
